@@ -1,14 +1,45 @@
 import { temporaryDirectoryPath, readDir, unlink, extname } from '@/utils/fs'
-import { readPic as _readPic } from 'react-native-local-media-metadata'
+import {
+  readPic as _readPic,
+  readMetadata as _readMetadata,
+  readLyric as _readLyric,
+  type MusicMetadataFull,
+} from 'react-native-local-media-metadata'
+import iconv from 'iconv-lite'
 export {
   type MusicMetadata,
   type MusicMetadataFull,
-  readMetadata,
   writeMetadata,
   writePic,
-  readLyric,
   writeLyric,
 } from 'react-native-local-media-metadata'
+
+const highByteRx = /[\u0080-\u00ff]/
+const highBytePairRx = /[\u0080-\u00ff]{2,}/
+const nonLatin1Rx = /[\u0100-\uffff]/
+const cjkRx = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\u3000-\u303f\uff00-\uffef]/
+
+export const fixNonUtf8Str = (str: string): string => {
+  if (!highByteRx.test(str) || nonLatin1Rx.test(str) || !highBytePairRx.test(str)) return str
+  const decoded = iconv.decode(iconv.encode(str, 'latin1'), 'gb18030')
+  if (decoded.includes('\ufffd') || !cjkRx.test(decoded)) return str
+  return decoded
+}
+
+export const readMetadata = async(filePath: string): Promise<MusicMetadataFull | null> => {
+  const metadata = await _readMetadata(filePath)
+  if (!metadata) return null
+  return {
+    ...metadata,
+    name: fixNonUtf8Str(metadata.name),
+    singer: fixNonUtf8Str(metadata.singer),
+    albumName: fixNonUtf8Str(metadata.albumName),
+  }
+}
+
+export const readLyric = async(filePath: string, isReadLrcFile: boolean = true): Promise<string> => {
+  return fixNonUtf8Str(await _readLyric(filePath, isReadLrcFile))
+}
 
 let cleared = false
 const picCachePath = temporaryDirectoryPath + '/local-media-metadata'
