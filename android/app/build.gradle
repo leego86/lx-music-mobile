@@ -98,7 +98,7 @@ def getNpmPackageJson() {
     return packageJson
 }
 def npmPackageJson = getNpmPackageJson()
-def verCode = npmPackageJson["versionCode"]
+def verCode = npmPackageJson["versionCode"].toInteger()
 def verName = npmPackageJson["version"]
 def applicationName = npmPackageJson["name"]
 
